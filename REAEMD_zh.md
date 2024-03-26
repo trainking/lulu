@@ -40,11 +40,11 @@ Password: "66014775009e4106"
 OutUrl: "ws://127.0.0.1:8007"
 ```
 
-You can make changes according to your project situation. After the configuration file is added, in main, you can use the following code to start the game service:
+你可以根据自己的项目情况，做出一下变更。配置文件增加之后，在main中，就可以使用如下代码开始游戏服务:
 
 ```golang
 func main() {
-	// read configs/game.yaml
+	// 从默认的configs/game.yaml中读取配置
 	app := lulu.New(lulu.LoadDefaultAppConfig())
 
 	app.Run(
@@ -53,3 +53,7 @@ func main() {
 	)
 }
 ```
+
+## 贡献者
+
+- xiaoye
