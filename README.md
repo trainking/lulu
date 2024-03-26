@@ -56,6 +56,70 @@ func main() {
 }
 ```
 
+## Modules
+
+Modules are the core of lulu. Lulu relies on modules to organize code, and each module represents a functional module. In general, we need three modules:
+
+- gate: The gate module is the entry of the game server, which is responsible for accepting connections from the client and forwarding them to the game module.
+- game: The game module is responsible for processing the game logic.
+- wait: Responsible for closing when elegantly destroying exits.
+
+You can also split smaller modules depending on the project. Each module is a separate package, which must have a structure that implements the'Module 'interface：
+
+```golang
+var Module = func() lulu.Module {
+	return new(M)
+}
+
+type M struct {
+}
+
+func (m *M) Name() string {
+	return "game"
+}
+func (m *M) OnInit(app *lulu.App) error {
+	return nil
+}
+func (m *M) OnDestory() {
+}
+func (m *M) Route(app *lulu.App) {
+
+}
+```
+
+The initialization of the module will call the "OnInit" method when Lulu is started, and the "OnDestory" method will be called when destroyed. It should be noted that the order of the two is opposite. During initialization, it is the first to register first. Initialization is the opposite when destroyed. The last registered module is destroyed first.
+
+### Router
+
+The `Route` method of the module used to register routes. Lulu recommends managing routes based on modules instead of registering routes in one place. There are three routes in Lulu, namely:
+
+- External routing: that is, request routing, that is, the operation instruction message sent by the player.
+- Internal routing: Internal routing is the message routing within the game service that performs specific operations to the specified player according to the current event.
+- Return routing: Return route, which is the return route for the server to send messages to the player.
+
+They are all registered using the `app.Route().Register()` method. In addition to the common opcode parameters and message structure, you need to specify their differentiation through `RegiserOptions`:
+
+**External routing**
+
+```golang
+// Specify opcode and whether to enable authentication middleware with RegisterOptions
+app.Route().Register(&msg.AuthReq{}, msg.OpcodeAuthReq, lulu.WithRegisterHandler(m.AuthReq), lulu.WithRegisterIsNoValid(true))
+```
+
+**Internal routing**
+
+```golang
+// Specify opcode and specify internal routes through RegisterOptions
+app.Route().Register(&msg.AuthReq{}, msg.OpcodeAuthReq, lulu.WithRegisterHandler(m.AuthReq), lulu.WithRegisterIsInner(true))
+```
+
+**Return routing**
+
+```golang
+// No additional RegisterOptions required
+app.Route().Register(&msg.AuthReq{}, msg.OpcodeAuthReq)
+```
+
 ## Contributor
 
 - xiaoye

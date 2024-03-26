@@ -54,6 +54,71 @@ func main() {
 }
 ```
 
+## 模块
+
+模块是lulu的核心。lulu依靠module来组织代码，每个module代表一个功能模块。一般情况下，我们需要三个模块:
+
+- gate：负责玩家服务接入，如登录验证，断线重连等等
+- game：负责游戏逻辑
+- wait: 负责关闭时，优雅的销毁退出
+
+你也可以根据项目的情况，拆分更细的模块。每一个模块都是一个独立的包，其中必须要有一个实现`Module`接口的结构体。推荐的实现结构如下:
+
+```golang
+var Module = func() lulu.Module {
+	return new(M)
+}
+
+type M struct {
+}
+
+func (m *M) Name() string {
+	return "game"
+}
+func (m *M) OnInit(app *lulu.App) error {
+	return nil
+}
+func (m *M) OnDestory() {
+}
+func (m *M) Route(app *lulu.App) {
+
+}
+```
+
+模块的初始化，在lulu启动时，会调用`OnInit`方法，销毁时，会调用`OnDestory`方法。需要注意的时，二者的顺序是相反的，初始化时，是先注册的先初始化，销毁时则是相反，最后注册的模块，最先销毁。
+
+### 路由
+
+模块的`Route`方法，用来注册路由。lulu推荐使用根据模块来管理路由，而不是将路由集中在一处注册。lulu中存在三种路由，分别是：
+
+- 外部路由：也就是请求路由，即玩家发送的操作指令消息
+- 内部路由：内部路由则是游戏服务内部，根据当前事件，向指定玩家执行特定操作的消息路由
+- 返回路由：返回路由，是服务器向玩家发送消息的返回路由
+
+它们都是使用`app.Route().Register()`方法注册。除了共有的opcode参数和消息结构体外，需要通过`RegiserOptions`来指定它们的区分:
+
+**外部路由**
+
+```golang
+// 通过RegisterOptions指定opcode和是否启用验证中间件
+app.Route().Register(&msg.AuthReq{}, msg.OpcodeAuthReq, lulu.WithRegisterHandler(m.AuthReq), lulu.WithRegisterIsNoValid(true))
+```
+
+**内部路由**
+
+```golang
+// 通过RegisterOptions指定opcode和指定是内部路由
+app.Route().Register(&msg.AuthReq{}, msg.OpcodeAuthReq, lulu.WithRegisterHandler(m.AuthReq), lulu.WithRegisterIsInner(true))
+```
+
+
+**返回路由**
+
+```golang
+// 无需指定额外RegisterOptions
+app.Route().Register(&msg.AuthReq{}, msg.OpcodeAuthReq)
+```
+
 ## 贡献者
 
 - xiaoye
