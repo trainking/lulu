@@ -70,7 +70,9 @@ func (s *Session) Run() {
 			return
 		}
 
-		s.callback.OnMessage(s, p)
+		if p.OpCode() > 0 {
+			s.callback.OnMessage(s, p)
+		}
 	}
 }
 
