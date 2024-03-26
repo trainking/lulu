@@ -19,6 +19,18 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// startPanel 启动面板
+const startPanel = `
+********************************
+lulu is start!
+
+> Network: %s
+> Address: %s
+> Modules: %s
+> Time: %v
+********************************
+`
+
 type (
 	// App 游戏服务器应用实现
 	App struct {
@@ -101,13 +113,17 @@ func (app *App) Run(modules ...Module) {
 	}()
 
 	// 加入模块
+	var modulesNames string
 	for _, m := range modules {
 		if err := m.OnInit(app); err != nil {
 			panic(err)
 		}
 		m.Route(app)
 		app.modules = append(app.modules, m)
+		modulesNames += m.Name() + " "
 	}
+
+	fmt.Printf(startPanel, app.Config.NetWork, app.Config.Address, modulesNames, time.Now())
 
 	app.run()
 }
