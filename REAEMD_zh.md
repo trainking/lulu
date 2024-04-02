@@ -119,6 +119,21 @@ app.Route().Register(&msg.AuthReq{}, msg.OpcodeAuthReq, lulu.WithRegisterHandler
 app.Route().Register(&msg.AuthReq{}, msg.OpcodeAuthReq)
 ```
 
+### Handler
+
+lulu中，Handler是对事件响应的抽象。更具发送者的不同，lulu中存在两种路由：**OuterHandler**和**InnerHandler**。
+
+- OuterHandler: 对外部路由的处理
+- InnerHandler: 对内部路由的处理
+
+每个Handler函数，必须必须遵循如下结构：
+
+```golang
+func HandlerName(c lulu.Context) error
+```
+
+对Handler的调用，外部路由来自客户端的请求，无需多言。而内部路由，则采用App的两个方法调用, 分别是`Action`和`Call`。二者的区别是，Call直接通过已知的Session，向其发送消息，而是通过UserID，从有效连接集合中，查找发送。
+
 ## 贡献者
 
 - xiaoye

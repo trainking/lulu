@@ -120,6 +120,21 @@ app.Route().Register(&msg.AuthReq{}, msg.OpcodeAuthReq, lulu.WithRegisterHandler
 app.Route().Register(&msg.AuthReq{}, msg.OpcodeAuthReq)
 ```
 
+### Handler
+
+In Lulu, the Handler is an abstraction of event response. More different from the sender, there are two routes in Lulu: **OuterHandler** and **InnerHandler**.
+
+- OuterHandler: Handling of external routes
+- InnerHandler: Handling of internal routes
+
+Each Handler function must adhere to the following structure:
+
+```golang
+func HandlerName(c lulu.Context) error
+```
+
+For the call to the Handler, the external route is the request from the client, without further ado. The internal route uses the two method calls of the App, namely `Action` and `Call`. The difference between the two is that the Call directly sends messages to the known Session, but through the UserID, it finds and sends from the set of valid connections.
+
 ## Contributor
 
 - xiaoye
