@@ -137,7 +137,7 @@ For the call to the Handler, the external route is the request from the client, 
 
 ## protocol
 
-Lulu supports``tcp`,`kcp` and `websocket` as transport protocols, and adopts the message protocol of fixed-length header + variable-length packet body. Its structure is as follows:
+Lulu supports `tcp`, `kcp` and `websocket` as transport protocols, and adopts the message protocol of fixed-length header + variable-length packet body. Its structure is as follows:
 
 ```
  |-----------------------------message-----------------------------------------|
