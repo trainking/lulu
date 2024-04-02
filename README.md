@@ -135,6 +135,20 @@ func HandlerName(c lulu.Context) error
 
 For the call to the Handler, the external route is the request from the client, without further ado. The internal route uses the two method calls of the App, namely `Action` and `Call`. The difference between the two is that the Call directly sends messages to the known Session, but through the UserID, it finds and sends from the set of valid connections.
 
+## protocol
+
+Lulu supports``tcp`,`kcp` and `websocket` as transport protocols, and adopts the message protocol of fixed-length header + variable-length packet body. Its structure is as follows:
+
+```
+ |-----------------------------message-----------------------------------------|
+ |----------------------Header------------------|------------Body--------------|
+ |------Body Length-------|--------Opcode-------|------------Body--------------|
+ |---------uint16---------|---------uint16------|------------bytes-------------|
+ |-----------2------------|----------2----------|-----------len(Body)----------|
+```
+
+> Byte order Use big endi
+
 ## Contributor
 
 - xiaoye
