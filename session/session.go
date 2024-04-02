@@ -45,7 +45,7 @@ func NewSession(conn network.Conn, callback SessionCallback) *Session {
 		Conn:      conn,
 		callback:  callback,
 		closeChan: make(chan struct{}),
-		validChan: make(chan uint64, 1),
+		validChan: make(chan uint64),
 	}
 }
 

@@ -21,6 +21,9 @@ type (
 		// Session 获取这个玩家的Session
 		Session() *session.Session
 
+		// App 获取App
+		App() *App
+
 		// GetOpCode 获取此次请求的opcode
 		GetOpCode() uint16
 	}

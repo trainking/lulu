@@ -145,7 +145,7 @@ func (app *App) run() {
 
 		go func() {
 			s := session.NewSession(conn, app)
-			s.Run()
+			go s.Run()
 
 			validTimer := time.NewTimer(time.Duration(app.Config.ValidTimeout) * time.Second)
 			select {
@@ -155,8 +155,8 @@ func (app *App) run() {
 					return
 				}
 			case <-s.WaitValid():
+				app.SessionManager.Add(s)
 			}
-			app.SessionManager.Add(s)
 		}()
 	}
 }
@@ -171,32 +171,38 @@ func (app *App) SetDisconnectEvent(event SessionEvent) {
 	app.disconnectEvent = event
 }
 
-// Action 向特定玩家触发消息，只可以向玩家触发返回消息或者触发其内部路由
+// Action 通过UserID，向特定玩家触发消息，只可以向玩家触发返回消息或者触发其内部路由；
+// 需要注意的是，需要确认此玩家已经成为有有效连接，如无，则忽略消息发送
 func (app *App) Action(userID uint64, msg proto.Message) {
 	// 先获取此玩家是否在在线
 	if s, ok := app.SessionManager.Get(userID); !ok {
 		return
 	} else {
-		msgName := msg.ProtoReflect().Descriptor().FullName()
-		_r, ok := app.RouterManager.GetInnerRouter(msgName)
-		if !ok {
-			_, ok := app.RouterManager.GetSendOpCode(msgName)
-			if !ok {
-				fmt.Printf("%s\tAction Eerror: %v UserID: %v\n", time.Now().Format(time.RFC3339), "no register router", userID)
-				return
-			}
+		app.Call(s, msg)
+	}
+}
 
-			if err := s.Send(msg); err != nil {
-				fmt.Printf("%s\tAction Send Eerror: %v UserID: %v\n", time.Now().Format(time.RFC3339), err, userID)
-			}
+// Call 通过session，向特定玩家触发消息，可以向玩家触发返回消息或者触发其内部路由
+func (app *App) Call(s *session.Session, msg proto.Message) {
+	msgName := msg.ProtoReflect().Descriptor().FullName()
+	_r, ok := app.RouterManager.GetInnerRouter(msgName)
+	if !ok {
+		_, ok := app.RouterManager.GetSendOpCode(msgName)
+		if !ok {
+			fmt.Printf("%s\tAction Eerror: %v UserID: %v\n", time.Now().Format(time.RFC3339), "no register router", s.UserID)
 			return
 		}
 
-		// 内部路由执行
-		msgB, _ := proto.Marshal(msg)
-		p := network.PackingOpcode(_r.OpCode, msgB)
-		go app.asyncHandleMessage(s, _r, p)
+		if err := s.Send(msg); err != nil {
+			fmt.Printf("%s\tAction Send Eerror: %v UserID: %v\n", time.Now().Format(time.RFC3339), err, s.UserID)
+		}
+		return
 	}
+
+	// 内部路由执行
+	msgB, _ := proto.Marshal(msg)
+	p := network.PackingOpcode(_r.OpCode, msgB)
+	go app.asyncHandleMessage(s, _r, p)
 }
 
 // asyncHandleMessage 异步处理消息
