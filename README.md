@@ -135,6 +135,24 @@ func HandlerName(c lulu.Context) error
 
 For the call to the Handler, the external route is the request from the client, without further ado. The internal route uses the two method calls of the App, namely `Action` and `Call`. The difference between the two is that the Call directly sends messages to the known Session, but through the UserID, it finds and sends from the set of valid connections.
 
+### Middleware
+
+Lulu supports middleware, which is the pre-processing of specific requests. Some public processing can be added as middleware. In game servers, it is less used, but such a mechanism is still provided. Each middleware must be an instance that implements the'Middleware 'interface. As follows:
+
+```golang
+func MiddlewareName() Middleware {
+	return func(next Handler) Handler {
+		return func(ctx Context) error {
+			...
+			// TOOD coding
+			return next(ctx)
+		}
+	}
+}
+```
+
+In a route, use `lulu.WithRegisterMiddleware` to register the middleware with the route.
+
 ## protocol
 
 Lulu supports `tcp`, `kcp` and `websocket` as transport protocols, and adopts the message protocol of fixed-length header + variable-length packet body. Its structure is as follows:

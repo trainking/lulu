@@ -134,6 +134,24 @@ func HandlerName(c lulu.Context) error
 
 对Handler的调用，外部路由来自客户端的请求，无需多言。而内部路由，则采用App的两个方法调用, 分别是`Action`和`Call`。二者的区别是，Call直接通过已知的Session，向其发送消息，而是通过UserID，从有效连接集合中，查找发送。
 
+### Middleware
+
+lulu支持中间件，中间件是对特定请求的前置处理方式。可以将一些公有的处理，增加为中间件。在游戏服务器中，使用的比较少，但依旧提供了这样的机制。每个中间，必须是实现了`Middleware`接口的实例。如下：
+
+```golang
+func MiddlewareName() Middleware {
+	return func(next Handler) Handler {
+		return func(ctx Context) error {
+			...
+			// TOOD coding
+			return next(ctx)
+		}
+	}
+}
+```
+
+在路由中，使用`lulu.WithRegisterMiddleware`将中间件注册到路由中。
+
 ## 协议
 
 lulu支持`tcp`, `kcp`和`websocket`作为传输协议，采用定长包头+变长包体的方式的报文协议，其结构如下:
