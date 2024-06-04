@@ -40,8 +40,8 @@ func (r *RouterManager) Register(msg proto.Message, opcode interface{}, opts ...
 		m = append(m, rp.Middleware...)
 	}
 	if rp.IsInner {
-		_op := opcodeChange(opcode)
-		if _op == 0 {
+		_op, err := opcodeChange(opcode)
+		if err == ErrOpCode {
 			return
 		}
 		r.innderRouter[msg.ProtoReflect().Type().Descriptor().FullName()] = Router{
@@ -50,8 +50,8 @@ func (r *RouterManager) Register(msg proto.Message, opcode interface{}, opts ...
 			Middleware: m,
 		}
 	} else {
-		_op := opcodeChange(opcode)
-		if _op == 0 {
+		_op, err := opcodeChange(opcode)
+		if err == ErrOpCode {
 			return
 		}
 		r.handleRouter[_op] = Router{
@@ -80,7 +80,11 @@ func (r *RouterManager) GetSendOpCode(msgName protoreflect.FullName) (uint16, bo
 	if !ok {
 		return 0, false
 	}
-	return opcodeChange(_op), true
+	cd, err := opcodeChange(_op)
+	if err != nil {
+		return 0, false
+	}
+	return cd, true
 }
 
 // GetMsgOpcde 获取消息对应的opcode，只获取内部路由和返回消息
@@ -91,7 +95,11 @@ func (r *RouterManager) GetMsgOpcde(msg proto.Message) (uint16, error) {
 	}
 
 	if opcode, ok := r.outSendMap[msgName]; ok {
-		return opcodeChange(opcode), nil
+		cd, err := opcodeChange(opcode)
+		if err != nil {
+			return 0, err
+		}
+		return cd, nil
 	}
 
 	return 0, ErrNoRegister
