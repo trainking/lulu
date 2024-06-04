@@ -2,11 +2,9 @@ package lulu
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net"
 	"net/url"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/trainking/lulu/network"
@@ -50,7 +48,6 @@ func NewClient(nw string, config *network.Config) (*Client, error) {
 		receiveChan: make(chan network.Packet, 1024),
 	}
 
-	go client.KeepAlive()
 	go client.receive()
 
 	return client, nil
@@ -102,28 +99,6 @@ func newWsConn(config *network.Config) (network.Conn, error) {
 		return nil, err
 	}
 	return network.NewWebSocketConn(c, config, ""), nil
-}
-
-// KeepAlive 心跳
-func (c *Client) KeepAlive() {
-	ticker := time.NewTicker(time.Second * 3)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-c.closeChan:
-			return
-		case <-ticker.C:
-			c.Ping()
-		}
-	}
-}
-
-// Ping 请求ping
-func (c *Client) Ping() {
-	if err := c.Conn.WritePacket(network.PackingOpcode(0, nil)); err != nil {
-		c.Close()
-		fmt.Printf("Ping error: %v\n", err)
-	}
 }
 
 // Send 发送消息
