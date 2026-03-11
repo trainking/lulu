@@ -9,7 +9,7 @@ type (
 	// RouterManager 路由管理器
 	RouterManager struct {
 		handleRouter map[uint16]Router
-		innderRouter map[protoreflect.FullName]Router
+		innerRouter  map[protoreflect.FullName]Router
 		outSendMap   map[protoreflect.FullName]interface{}
 	}
 )
@@ -18,12 +18,12 @@ type (
 func NewRouterManager() *RouterManager {
 	return &RouterManager{
 		handleRouter: make(map[uint16]Router),
-		innderRouter: make(map[protoreflect.FullName]Router),
+		innerRouter:  make(map[protoreflect.FullName]Router),
 		outSendMap:   make(map[protoreflect.FullName]interface{}),
 	}
 }
 
-// Regsiter 注册路由
+// Register 注册路由
 func (r *RouterManager) Register(msg proto.Message, opcode interface{}, opts ...RegisterOptions) {
 	rp := NewRegisterParams(opts...)
 	if rp.Handler == nil {
@@ -44,7 +44,7 @@ func (r *RouterManager) Register(msg proto.Message, opcode interface{}, opts ...
 		if err == ErrOpCode {
 			return
 		}
-		r.innderRouter[msg.ProtoReflect().Type().Descriptor().FullName()] = Router{
+		r.innerRouter[msg.ProtoReflect().Type().Descriptor().FullName()] = Router{
 			OpCode:     _op,
 			Handler:    rp.Handler,
 			Middleware: m,
@@ -70,11 +70,11 @@ func (r *RouterManager) GetHandleRouter(opcode uint16) (Router, bool) {
 
 // GetInnerRouter 获取内部路由
 func (r *RouterManager) GetInnerRouter(msgName protoreflect.FullName) (Router, bool) {
-	_r, ok := r.innderRouter[msgName]
+	_r, ok := r.innerRouter[msgName]
 	return _r, ok
 }
 
-// GetSendOpCode 获取返回消息对应的opcode
+// GetSendOpCode 获取返回消息对应的 opcode
 func (r *RouterManager) GetSendOpCode(msgName protoreflect.FullName) (uint16, bool) {
 	_op, ok := r.outSendMap[msgName]
 	if !ok {
@@ -87,10 +87,10 @@ func (r *RouterManager) GetSendOpCode(msgName protoreflect.FullName) (uint16, bo
 	return cd, true
 }
 
-// GetMsgOpcde 获取消息对应的opcode，只获取内部路由和返回消息
-func (r *RouterManager) GetMsgOpcde(msg proto.Message) (uint16, error) {
+// GetMsgOpcode 获取消息对应的 opcode，只获取内部路由和返回消息
+func (r *RouterManager) GetMsgOpcode(msg proto.Message) (uint16, error) {
 	msgName := msg.ProtoReflect().Descriptor().FullName()
-	if _router, ok := r.innderRouter[msgName]; ok {
+	if _router, ok := r.innerRouter[msgName]; ok {
 		return _router.OpCode, nil
 	}
 

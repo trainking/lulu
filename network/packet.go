@@ -2,8 +2,14 @@ package network
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"sync"
+)
+
+const (
+	// MaxPacketSize 最大包体大小限制（64MB），防止内存攻击
+	MaxPacketSize = 64 * 1024 * 1024
 )
 
 var (
@@ -13,6 +19,9 @@ var (
 			return new(DefaultPacket)
 		},
 	}
+
+	// ErrPacketTooLarge 包体大小超过限制
+	ErrPacketTooLarge = errors.New("packet too large")
 )
 
 type (
@@ -21,13 +30,13 @@ type (
 		// Serialize 序列化
 		Serialize() []byte
 
-		// OpeCode 获取该包的OpCode
+		// OpeCode 获取该包的 OpCode
 		OpCode() uint16
 
 		// BodyLen 内容长度
 		BodyLen() uint16
 
-		// Body 获取完整body
+		// Body 获取完整 body
 		Body() []byte
 
 		// Free 释放空间
@@ -53,7 +62,7 @@ func (p *DefaultPacket) Serialize() []byte {
 	return p.buff
 }
 
-// OpCode 包的2-3位为OpCode
+// OpCode 包的 2-3 位为 OpCode
 func (p *DefaultPacket) OpCode() uint16 {
 	return binary.BigEndian.Uint16(p.buff[2:4])
 }
@@ -63,7 +72,7 @@ func (p *DefaultPacket) BodyLen() uint16 {
 	return binary.BigEndian.Uint16(p.buff[0:2])
 }
 
-// Body 读取body所有字符
+// Body 读取 body 所有字符
 func (p *DefaultPacket) Body() []byte {
 	return p.buff[4:]
 }
@@ -76,9 +85,9 @@ func (p *DefaultPacket) Free() {
 	DefaultPacketPool.Put(p)
 }
 
-// PackingReader 从io.Reader中读取一个Packet
+// PackingReader 从 io.Reader 中读取一个 Packet
 func PackingReader(r io.Reader) (Packet, error) {
-	// 4字节头
+	// 4 字节头
 	var headrBytes = make([]byte, 4)
 
 	// 读取头
@@ -87,11 +96,17 @@ func PackingReader(r io.Reader) (Packet, error) {
 	}
 
 	bodyLength := binary.BigEndian.Uint16(headrBytes[0:2])
+
+	// 检查包体大小限制
+	if int(bodyLength) > MaxPacketSize {
+		return nil, ErrPacketTooLarge
+	}
+
 	var buff []byte
 	if bodyLength > 0 {
 		buff = make([]byte, bodyLength)
 
-		// 读取body
+		// 读取 body
 		if _, err := io.ReadFull(r, buff); err != nil {
 			return nil, err
 		}
@@ -106,7 +121,7 @@ func PackingReader(r io.Reader) (Packet, error) {
 	return NewDefaultPacket(pbuff), nil
 }
 
-// PackingOpcode 加入opcode方式，创建一个Packet
+// PackingOpcode 加入 opcode 方式，创建一个 Packet
 func PackingOpcode(opcode uint16, msg []byte) Packet {
 	bodyLen := len(msg)
 	buff := make([]byte, 4+bodyLen)

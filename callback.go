@@ -21,13 +21,13 @@ func (a *App) OnMessage(s *session.Session, p network.Packet) {
 	go a.asyncHandleMessage(s, router, p)
 }
 
-// OnDisConnect 连接断开回调
-func (a *App) OnDisConnect(s *session.Session) {
+// OnDisconnect 连接断开回调
+func (a *App) OnDisconnect(s *session.Session) {
 	a.SessionManager.Del(s)
 	a.disconnectEvent(s)
 }
 
-// GetMsgOpCode 获取消息的OpCode
+// GetMsgOpCode 获取消息的 OpCode
 func (a *App) GetMsgOpCode(msg proto.Message) (uint16, error) {
-	return a.RouterManager.GetMsgOpcde(msg)
+	return a.RouterManager.GetMsgOpcode(msg)
 }

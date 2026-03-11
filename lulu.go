@@ -1,5 +1,5 @@
 /*
-lulu是一个游戏服务器框架，支持tcp， kcp，websocket协议。
+lulu 是一个游戏服务器框架，支持 tcp，kcp，websocket 协议。
 */
 
 package lulu
@@ -46,7 +46,7 @@ type (
 	}
 )
 
-// New 创建一个服务器的App
+// New 创建一个服务器的 App
 func New(config *Config) *App {
 	app := new(App)
 	app.Config = config
@@ -60,8 +60,8 @@ func New(config *Config) *App {
 func (app *App) init() {
 	var err error
 
-	// 初始化Listener
-	lF := network.NewListenerFactory(app.Config.NetWork, app.Config.Address, app.Config.ConnWriteTimeout, app.Config.ConnWriteTimeout)
+	// 初始化 Listener
+	lF := network.NewListenerFactory(app.Config.NetWork, app.Config.Address, app.Config.ConnWriteTimeout, app.Config.ConnReadTimeout)
 	if app.Config.TLS != nil {
 		cert, err := tls.LoadX509KeyPair(app.Config.TLS.CertFile, app.Config.TLS.KeyFile)
 		if err != nil {
@@ -101,15 +101,15 @@ func (app *App) Run(modules ...Module) {
 		signal.Notify(exitC, syscall.SIGINT, syscall.SIGTERM)
 
 		<-exitC
-		app.Destory()
+		app.Destroy()
 		os.Exit(0)
 	}()
 	defer func() {
 		e := recover()
 		if e != nil {
-			fmt.Printf("painc :%v\n", e)
+			fmt.Printf("panic :%v\n", e)
 		}
-		app.Destory()
+		app.Destroy()
 	}()
 
 	// 加入模块
@@ -130,11 +130,18 @@ func (app *App) Run(modules ...Module) {
 
 // run 具体运行的逻辑
 func (app *App) run() {
+	connCount := 0
 	for {
 		select {
 		case <-app.exitChan:
 			return
 		default:
+		}
+
+		// 检查连接数限制
+		if connCount >= app.Config.ConnMax {
+			time.Sleep(100 * time.Millisecond)
+			continue
 		}
 
 		conn, err := app.listener.Accept()
@@ -143,15 +150,26 @@ func (app *App) run() {
 			continue
 		}
 
+		connCount++
+
 		go func() {
+			defer func() {
+				if e := recover(); e != nil {
+					fmt.Printf("session run panic :%v\n", e)
+				}
+			}()
+
 			s := session.NewSession(conn, app)
 			go s.Run()
 
 			validTimer := time.NewTimer(time.Duration(app.Config.ValidTimeout) * time.Second)
+			defer validTimer.Stop()
+
 			select {
 			case <-validTimer.C:
 				if !s.IsValid() {
-					s.Destory()
+					s.Destroy()
+					connCount--
 					return
 				}
 			case <-s.WaitValid():
@@ -171,10 +189,10 @@ func (app *App) SetDisconnectEvent(event SessionEvent) {
 	app.disconnectEvent = event
 }
 
-// Action 通过UserID，向特定玩家触发消息，只可以向玩家触发返回消息或者触发其内部路由；
+// Action 通过 UserID，向特定玩家触发消息，只可以向玩家触发返回消息或者触发其内部路由；
 // 需要注意的是，需要确认此玩家已经成为有有效连接，如无，则忽略消息发送
 func (app *App) Action(userID uint64, msg proto.Message) {
-	// 先获取此玩家是否在在线
+	// 先获取此玩家是否在线
 	if s, ok := app.SessionManager.Get(userID); !ok {
 		return
 	} else {
@@ -182,25 +200,29 @@ func (app *App) Action(userID uint64, msg proto.Message) {
 	}
 }
 
-// Call 通过session，向特定玩家触发消息，可以向玩家触发返回消息或者触发其内部路由
+// Call 通过 session，向特定玩家触发消息，可以向玩家触发返回消息或者触发其内部路由
 func (app *App) Call(s *session.Session, msg proto.Message) {
 	msgName := msg.ProtoReflect().Descriptor().FullName()
 	_r, ok := app.RouterManager.GetInnerRouter(msgName)
 	if !ok {
 		_, ok := app.RouterManager.GetSendOpCode(msgName)
 		if !ok {
-			fmt.Printf("%s\tAction Eerror: %v UserID: %v\n", time.Now().Format(time.RFC3339), "no register router", s.UserID)
+			fmt.Printf("%s\tAction Error: %v UserID: %v\n", time.Now().Format(time.RFC3339), "no register router", s.UserID)
 			return
 		}
 
 		if err := s.Send(msg); err != nil {
-			fmt.Printf("%s\tAction Send Eerror: %v UserID: %v\n", time.Now().Format(time.RFC3339), err, s.UserID)
+			fmt.Printf("%s\tAction Send Error: %v UserID: %v\n", time.Now().Format(time.RFC3339), err, s.UserID)
 		}
 		return
 	}
 
 	// 内部路由执行
-	msgB, _ := proto.Marshal(msg)
+	msgB, err := proto.Marshal(msg)
+	if err != nil {
+		fmt.Printf("%s\tCall Marshal Error: %v UserID: %v\n", time.Now().Format(time.RFC3339), err, s.UserID)
+		return
+	}
 	p := network.PackingOpcode(_r.OpCode, msgB)
 	go app.asyncHandleMessage(s, _r, p)
 }
@@ -209,7 +231,7 @@ func (app *App) Call(s *session.Session, msg proto.Message) {
 func (app *App) asyncHandleMessage(s *session.Session, r Router, p network.Packet) {
 	defer func() {
 		if e := recover(); e != nil {
-			fmt.Printf("%s\tasyncHandleMessge Eerror: %v Opcode: %v\n", time.Now().Format(time.RFC3339), e, r.OpCode)
+			fmt.Printf("%s\tasyncHandleMessage Error: %v Opcode: %v\n", time.Now().Format(time.RFC3339), e, r.OpCode)
 		}
 		p.Free()
 	}()
@@ -218,23 +240,23 @@ func (app *App) asyncHandleMessage(s *session.Session, r Router, p network.Packe
 	h := r.Handler
 	// 处理消息之前，中间件过滤
 	if len(r.Middleware) > 0 {
-		for i := len(r.Middleware) - 1; i >= 0; i-- {
+		for i := 0; i < len(r.Middleware); i++ {
 			h = r.Middleware[i](h)
 		}
 	}
 	// 处理消息
 	if err := h(ctx); err != nil {
-		fmt.Printf("%s\tOnMessage Eerror: %v Opcode: %v\n", time.Now().Format(time.RFC3339), err, r.OpCode)
+		fmt.Printf("%s\tOnMessage Error: %v Opcode: %v\n", time.Now().Format(time.RFC3339), err, r.OpCode)
 		return
 	}
 }
 
-// Destory 销毁App
-func (app *App) Destory() {
+// Destroy 销毁 App
+func (app *App) Destroy() {
 	app.exitOnce.Do(func() {
 		// 先销毁模块，倒序销毁
 		for i := len(app.modules) - 1; i >= 0; i-- {
-			app.modules[i].OnDestory()
+			app.modules[i].OnDestroy()
 		}
 		close(app.exitChan)
 		app.listener.Close()

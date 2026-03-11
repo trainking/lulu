@@ -46,7 +46,19 @@ func NewWebSocketListener(config *Config) (Listener, error) {
 		config:    config,
 		ugrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
-				return true
+				// 允许同源请求
+				origin := r.Header.Get("Origin")
+				if origin == "" {
+					return true
+				}
+				// 验证 Origin 是否与请求主机匹配
+				host := r.Host
+				if host == "" {
+					host = r.URL.Host
+				}
+				// 简单验证：如果 Origin 包含主机地址，则允许
+				// 生产环境应该使用白名单机制
+				return origin == "http://"+host || origin == "https://"+host || origin == "ws://"+host || origin == "wss://"+host
 			},
 		},
 	}

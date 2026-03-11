@@ -1,5 +1,7 @@
 package session
 
+import "sync"
+
 type (
 	// SessionManager 会话管理器
 	SessionManager struct {
@@ -7,6 +9,7 @@ type (
 		sessionsAdd chan *Session
 		sessionsDel chan *Session
 		closeChan   chan struct{}
+		mu          sync.RWMutex // 保护 sessions 的并发访问
 	}
 )
 
@@ -31,16 +34,19 @@ func (mgr *SessionManager) handle() {
 		case <-mgr.closeChan:
 			return
 		case s := <-mgr.sessionsAdd:
+			mgr.mu.Lock()
 			if oldSession, ok := mgr.sessions[s.UserID]; ok {
-				oldSession.Destory()
+				oldSession.Destroy()
 			}
 			mgr.sessions[s.UserID] = s
+			mgr.mu.Unlock()
 		case s := <-mgr.sessionsDel:
+			mgr.mu.Lock()
 			if _session, ok := mgr.sessions[s.UserID]; ok && _session.ID == s.ID {
 				delete(mgr.sessions, s.UserID)
-				_session.Destory()
+				_session.Destroy()
 			}
-
+			mgr.mu.Unlock()
 		}
 	}
 }
@@ -57,11 +63,15 @@ func (mgr *SessionManager) Del(s *Session) {
 
 // Get 获取玩家的会话
 func (mgr *SessionManager) Get(userID uint64) (*Session, bool) {
+	mgr.mu.RLock()
+	defer mgr.mu.RUnlock()
 	s, ok := mgr.sessions[userID]
 	return s, ok
 }
 
 // Len 返回当前会话的数量
 func (mgr *SessionManager) Len() int {
+	mgr.mu.RLock()
+	defer mgr.mu.RUnlock()
 	return len(mgr.sessions)
 }

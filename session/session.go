@@ -12,9 +12,9 @@ import (
 type (
 	// Session 会话，会话是对玩家连接的一个包装
 	Session struct {
-		ID     int64        // 会话ID， 唯一标识
+		ID     int64        // 会话 ID， 唯一标识
 		Conn   network.Conn // 会话连接
-		UserID uint64       // 用户ID
+		UserID uint64       // 用户 ID
 
 		callback  SessionCallback // 回调接口
 		closeChan chan struct{}   // 关闭信号
@@ -30,10 +30,10 @@ type (
 		// OnMessage 当连接处理消息时
 		OnMessage(*Session, network.Packet)
 
-		// OnDisConnect 当连接断开时
-		OnDisConnect(*Session)
+		// OnDisconnect 当连接断开时
+		OnDisconnect(*Session)
 
-		// GetMsgOpCode 获取消息的OpCode
+		// GetMsgOpCode 获取消息的 OpCode
 		GetMsgOpCode(msg proto.Message) (uint16, error)
 	}
 )
@@ -45,7 +45,7 @@ func NewSession(conn network.Conn, callback SessionCallback) *Session {
 		Conn:      conn,
 		callback:  callback,
 		closeChan: make(chan struct{}),
-		validChan: make(chan uint64),
+		validChan: make(chan uint64, 1), // 使用缓冲 channel 防止阻塞
 	}
 }
 
@@ -55,7 +55,7 @@ func (s *Session) Run() {
 		if e := recover(); e != nil {
 			fmt.Printf("read loop error: %v\n", e)
 		}
-		s.Destory()
+		s.Destroy()
 	}()
 
 	for {
@@ -74,10 +74,15 @@ func (s *Session) Run() {
 	}
 }
 
-// SetUserID 设置用户ID
+// SetUserID 设置用户 ID
 func (s *Session) SetUserID(userID uint64) {
-	s.UserID = userID
-	s.validChan <- userID
+	select {
+	case s.validChan <- userID:
+		s.UserID = userID
+	case <-s.closeChan:
+		// session 已关闭，不再需要验证
+		return
+	}
 }
 
 // WaitValid 等待验证
@@ -90,7 +95,7 @@ func (s *Session) IsValid() bool {
 	return s.UserID != 0
 }
 
-// Send 向此session推送消息
+// Send 向此 session 推送消息
 func (s *Session) Send(msg proto.Message) error {
 	opcode, err := s.callback.GetMsgOpCode(msg)
 	if err != nil {
@@ -106,8 +111,8 @@ func (s *Session) Send(msg proto.Message) error {
 	return s.Conn.WritePacket(pakcket)
 }
 
-// Destory 销毁会话
-func (s *Session) Destory() {
+// Destroy 销毁会话
+func (s *Session) Destroy() {
 	s.closeOnce.Do(func() {
 		close(s.closeChan)
 		s.Conn.Close()

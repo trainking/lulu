@@ -105,10 +105,10 @@ func (l *ListenerFactory) Generate() (Listener, error) {
 
 	switch l.network {
 	case TcpNet:
-		listener, err = NewKcpListener(&netConfig)
+		listener, err = NewTcpListener(&netConfig)
 	case KcpNet:
 		netConfig.KcpMode = l.kcpMode
-		listener, err = NewTcpListener(&netConfig)
+		listener, err = NewKcpListener(&netConfig)
 	case WebSocketNet:
 		netConfig.WSUpgradePath = l.wsUpgradePath
 		listener, err = NewWebSocketListener(&netConfig)
