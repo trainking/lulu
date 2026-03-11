@@ -78,14 +78,14 @@ func (m *M) Name() string {
 func (m *M) OnInit(app *lulu.App) error {
 	return nil
 }
-func (m *M) OnDestory() {
+func (m *M) OnDestroy() {
 }
 func (m *M) Route(app *lulu.App) {
 
 }
 ```
 
-模块的初始化，在lulu启动时，会调用`OnInit`方法，销毁时，会调用`OnDestory`方法。需要注意的时，二者的顺序是相反的，初始化时，是先注册的先初始化，销毁时则是相反，最后注册的模块，最先销毁。
+模块的初始化，在lulu启动时，会调用`OnInit`方法，销毁时，会调用`OnDestroy`方法。需要注意的时，二者的顺序是相反的，初始化时，是先注册的先初始化，销毁时则是相反，最后注册的模块，最先销毁。
 
 ### 路由
 
@@ -95,7 +95,7 @@ func (m *M) Route(app *lulu.App) {
 - 内部路由：内部路由则是游戏服务内部，根据当前事件，向指定玩家执行特定操作的消息路由
 - 返回路由：返回路由，是服务器向玩家发送消息的返回路由
 
-它们都是使用`app.Route().Register()`方法注册。除了共有的opcode参数和消息结构体外，需要通过`RegiserOptions`来指定它们的区分:
+它们都是使用`app.Route().Register()`方法注册。除了共有的opcode参数和消息结构体外，需要通过`RegisterOptions`来指定它们的区分:
 
 **外部路由**
 

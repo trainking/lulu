@@ -24,7 +24,7 @@ Address: "127.0.0.1:8007"
 Network: "websocket"
 # Upgrade path for websocket
 WebsocketPath: "/ws"
-# KCP mode, nomarl normal mode fast Quick Mode; default Quick Mode
+# KCP mode,  normal mode fast Quick Mode; default Quick Mode
 KcpMode: "fast"
 # Read timeout per connection (equal to client side heartbeat timeout) in seconds
 ConnReadTimeout: 10
@@ -80,14 +80,14 @@ func (m *M) Name() string {
 func (m *M) OnInit(app *lulu.App) error {
 	return nil
 }
-func (m *M) OnDestory() {
+func (m *M) OnDestroy() {
 }
 func (m *M) Route(app *lulu.App) {
 
 }
 ```
 
-The initialization of the module will call the "OnInit" method when Lulu is started, and the "OnDestory" method will be called when destroyed. It should be noted that the order of the two is opposite. During initialization, it is the first to register first. Initialization is the opposite when destroyed. The last registered module is destroyed first.
+The initialization of the module will call the "OnInit" method when Lulu is started, and the "OnDestroy" method will be called when destroyed. It should be noted that the order of the two is opposite. During initialization, it is the first to register first. Initialization is the opposite when destroyed. The last registered module is destroyed first.
 
 ### Router
 
@@ -97,7 +97,7 @@ The `Route` method of the module used to register routes. Lulu recommends managi
 - Internal routing: Internal routing is the message routing within the game service that performs specific operations to the specified player according to the current event.
 - Return routing: Return route, which is the return route for the server to send messages to the player.
 
-They are all registered using the `app.Route().Register()` method. In addition to the common opcode parameters and message structure, you need to specify their differentiation through `RegiserOptions`:
+They are all registered using the `app.Route().Register()` method. In addition to the common opcode parameters and message structure, you need to specify their differentiation through `RegisterOptions`:
 
 **External routing**
 
@@ -144,7 +144,7 @@ func MiddlewareName() Middleware {
 	return func(next Handler) Handler {
 		return func(ctx Context) error {
 			...
-			// TOOD coding
+			// TODO coding
 			return next(ctx)
 		}
 	}
@@ -165,7 +165,7 @@ Lulu supports `tcp`, `kcp` and `websocket` as transport protocols, and adopts th
  |-----------2------------|----------2----------|-----------len(Body)----------|
 ```
 
-> Byte order Use big endi
+> Byte order Use big end
 
 ## Contributor
 
