@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -43,6 +44,7 @@ type (
 		modules         []Module                // 模块列表
 		connectEvent    SessionEvent            // 连接事件
 		disconnectEvent SessionEvent            // 断连事件
+		connCount       int32                   // 当前连接数
 	}
 )
 
@@ -130,7 +132,6 @@ func (app *App) Run(modules ...Module) {
 
 // run 具体运行的逻辑
 func (app *App) run() {
-	connCount := 0
 	for {
 		select {
 		case <-app.exitChan:
@@ -139,7 +140,7 @@ func (app *App) run() {
 		}
 
 		// 检查连接数限制
-		if connCount >= app.Config.ConnMax {
+		if atomic.LoadInt32(&app.connCount) >= int32(app.Config.ConnMax) {
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
@@ -150,7 +151,7 @@ func (app *App) run() {
 			continue
 		}
 
-		connCount++
+		atomic.AddInt32(&app.connCount, 1)
 
 		go func() {
 			defer func() {
@@ -160,6 +161,8 @@ func (app *App) run() {
 			}()
 
 			s := session.NewSession(conn, app)
+			app.OnConnect(s) // 建立连接回调
+
 			go s.Run()
 
 			validTimer := time.NewTimer(time.Duration(app.Config.ValidTimeout) * time.Second)
@@ -169,7 +172,6 @@ func (app *App) run() {
 			case <-validTimer.C:
 				if !s.IsValid() {
 					s.Destroy()
-					connCount--
 					return
 				}
 			case <-s.WaitValid():

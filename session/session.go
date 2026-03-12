@@ -3,6 +3,7 @@ package session
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/trainking/lulu/network"
@@ -20,6 +21,8 @@ type (
 		closeChan chan struct{}   // 关闭信号
 		closeOnce sync.Once       // 控制关闭单例
 		validChan chan uint64     // 验证通过信号
+		lastTick  int64           // 最后一次计数刷新时间 (Unix 秒)
+		msgCount  int32           // 当前周期的消息计数
 	}
 
 	// SessionCallback 会话回调接口
@@ -95,6 +98,22 @@ func (s *Session) IsValid() bool {
 	return s.UserID != 0
 }
 
+// CheckFlood 检查是否洪水攻击，每分钟超过 limit 返回 true
+func (s *Session) CheckFlood(limit int) bool {
+	if limit <= 0 {
+		return false
+	}
+	now := time.Now().Unix()
+	last := atomic.LoadInt64(&s.lastTick)
+	if now-last >= 60 {
+		if atomic.CompareAndSwapInt64(&s.lastTick, last, now) {
+			atomic.StoreInt32(&s.msgCount, 1)
+			return false
+		}
+	}
+	return atomic.AddInt32(&s.msgCount, 1) > int32(limit)
+}
+
 // Send 向此 session 推送消息
 func (s *Session) Send(msg proto.Message) error {
 	opcode, err := s.callback.GetMsgOpCode(msg)
@@ -116,5 +135,6 @@ func (s *Session) Destroy() {
 	s.closeOnce.Do(func() {
 		close(s.closeChan)
 		s.Conn.Close()
+		s.callback.OnDisconnect(s)
 	})
 }
