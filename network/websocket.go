@@ -4,6 +4,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,12 +19,12 @@ const (
 type (
 	// WebSocketListener WebSocket 监听器
 	WebSocketListener struct {
-		server     *http.Server
-		connChan   chan Conn
-		closeChan  chan struct{}
-		closeOnce  sync.Once
-		config     *Config
-		isClosed   bool
+		server    *http.Server
+		connChan  chan Conn
+		closeChan chan struct{}
+		closeOnce sync.Once
+		config    *Config
+		isClosed  bool
 
 		ugrader websocket.Upgrader
 	}
@@ -46,19 +47,11 @@ func NewWebSocketListener(config *Config) (Listener, error) {
 		config:    config,
 		ugrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
-				// 允许同源请求
 				origin := r.Header.Get("Origin")
 				if origin == "" {
 					return true
 				}
-				// 验证 Origin 是否与请求主机匹配
-				host := r.Host
-				if host == "" {
-					host = r.URL.Host
-				}
-				// 简单验证：如果 Origin 包含主机地址，则允许
-				// 生产环境应该使用白名单机制
-				return origin == "http://"+host || origin == "https://"+host || origin == "ws://"+host || origin == "wss://"+host
+				return isOriginAllowed(origin, config.Addr)
 			},
 		},
 	}
@@ -96,21 +89,14 @@ func (l *WebSocketListener) handleWebSocket(w http.ResponseWriter, r *http.Reque
 		log.Printf("WebSocket Upgrade Error: %s\n", err)
 		return
 	}
-	clientIP := r.Header.Get("X-Forwarded-For")
-	if clientIP == "" {
-		clientIP = r.Header.Get("X-Real-IP")
-	}
-	if clientIP == "" {
-		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
-		clientIP = ip
-	}
+
+	clientIP := realClientIP(r)
 
 	wConn := NewWebSocketConn(conn, l.config, clientIP)
 
 	select {
 	case l.connChan <- wConn:
 	case <-l.closeChan:
-		// 监听器已关闭，拒绝新连接
 		wConn.Close()
 		log.Printf("WebSocket Listener closed, reject new connection from %s\n", clientIP)
 	}
@@ -192,4 +178,36 @@ func (w *WebSocketConn) Close() {
 	if w.conn != nil {
 		w.conn.Close()
 	}
+}
+
+// isOriginAllowed 验证 Origin 是否允许，对比服务器配置的地址
+func isOriginAllowed(origin, addr string) bool {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false
+	}
+	if host == "0.0.0.0" || host == "::" {
+		host = "127.0.0.1"
+	}
+	target := net.JoinHostPort(host, port)
+	return origin == "http://"+target || origin == "https://"+target ||
+		origin == "ws://"+target || origin == "wss://"+target
+}
+
+// realClientIP 从请求中提取真实的客户端 IP
+func realClientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if i := strings.IndexByte(xff, ','); i > 0 {
+			return strings.TrimSpace(xff[:i])
+		}
+		return strings.TrimSpace(xff)
+	}
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return strings.TrimSpace(xri)
+	}
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return ip
 }

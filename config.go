@@ -13,7 +13,7 @@ type (
 		Address          string   `yaml:"Address"`                    // 监听的地址
 		NetWork          string   `yaml:"Network"`                    // 传输层协议，tcp, kcp，websocket
 		WebsocketPath    string   `yaml:"WebsocketPath,omitempty"`    // websocket时使用升级路径
-		KcpMode          string   `yaml:"KcpMode,omitempty"`          // kcp模式，nomarl 普通模式 fast 极速模式；默认极速模式
+		KcpMode          string   `yaml:"KcpMode,omitempty"`          // kcp模式，normal 普通模式 fast 极速模式；默认极速模式
 		ConnReadTimeout  int      `yaml:"ConnReadTimeout,omitempty"`  // 每个连接的读超时(等于客户端心跳的超时)，秒为单位， 默认10秒
 		ConnWriteTimeout int      `yaml:"ConnWriteTimeout,omitempty"` // 每个连接的写超时，秒为单位，默认5秒
 		ConnMax          int      `yaml:"ConnMax,omitempty"`          // 最大连接数， 默认10000
@@ -48,7 +48,7 @@ func ReadConfigYaml(path string) (*Config, error) {
 	}
 
 	var config Config
-	yaml.Unmarshal(yamlFile, &config)
+	err = yaml.Unmarshal(yamlFile, &config)
 	if err != nil {
 		return nil, err
 	}
@@ -82,5 +82,9 @@ func (c *Config) defaultValue() {
 
 	if c.ValidTimeout == 0 {
 		c.ValidTimeout = 10
+	}
+
+	if c.HeartLimit == 0 {
+		c.HeartLimit = 100
 	}
 }

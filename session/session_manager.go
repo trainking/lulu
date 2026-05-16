@@ -75,3 +75,13 @@ func (mgr *SessionManager) Len() int {
 	defer mgr.mu.RUnlock()
 	return len(mgr.sessions)
 }
+
+// Close 关闭会话管理器，停止 handle goroutine
+func (mgr *SessionManager) Close() {
+	select {
+	case <-mgr.closeChan:
+		return
+	default:
+		close(mgr.closeChan)
+	}
+}

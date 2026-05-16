@@ -39,7 +39,7 @@ func (l *KcpListener) Accept() (Conn, error) {
 
 	kcpConn := c.(*kcp.UDPSession)
 	// 极速模式；普通模式参数为 0, 40, 0, 0
-	if l.config.KcpMode == "nomarl" {
+	if l.config.KcpMode == "normal" {
 		kcpConn.SetNoDelay(0, 40, 0, 0)
 	} else {
 		kcpConn.SetNoDelay(1, 10, 2, 1)
@@ -47,8 +47,8 @@ func (l *KcpListener) Accept() (Conn, error) {
 
 	kcpConn.SetStreamMode(true)
 	kcpConn.SetWindowSize(4096, 4096)
-	kcpConn.SetReadBuffer(4 * 65536 * 1024)
-	kcpConn.SetWriteBuffer(4 * 65536 * 1024)
+	kcpConn.SetReadBuffer(4 * 1024 * 1024)
+	kcpConn.SetWriteBuffer(4 * 1024 * 1024)
 	kcpConn.SetACKNoDelay(true)
 
 	if l.config.TLSConfig != nil {

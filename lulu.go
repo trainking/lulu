@@ -139,8 +139,9 @@ func (app *App) run() {
 		default:
 		}
 
-		// 检查连接数限制
-		if atomic.LoadInt32(&app.connCount) >= int32(app.Config.ConnMax) {
+		// 检查连接数限制，原子递增后检查，避免竞态
+		if atomic.AddInt32(&app.connCount, 1) > int32(app.Config.ConnMax) {
+			atomic.AddInt32(&app.connCount, -1)
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
@@ -148,10 +149,9 @@ func (app *App) run() {
 		conn, err := app.listener.Accept()
 		if err != nil {
 			fmt.Printf("listener error: %v\n", err)
+			atomic.AddInt32(&app.connCount, -1)
 			continue
 		}
-
-		atomic.AddInt32(&app.connCount, 1)
 
 		go func() {
 			defer func() {
@@ -260,6 +260,7 @@ func (app *App) Destroy() {
 		for i := len(app.modules) - 1; i >= 0; i-- {
 			app.modules[i].OnDestroy()
 		}
+		app.SessionManager.Close()
 		close(app.exitChan)
 		app.listener.Close()
 	})

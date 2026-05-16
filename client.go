@@ -2,6 +2,7 @@ package lulu
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net"
 	"net/url"
 	"sync"
@@ -128,7 +129,9 @@ func (c *Client) Receive() <-chan network.Packet {
 // receive 接收服务端消息
 func (c *Client) receive() {
 	defer func() {
-		recover()
+		if e := recover(); e != nil {
+			fmt.Printf("client receive loop panic: %v\n", e)
+		}
 		c.Close()
 	}()
 
