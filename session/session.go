@@ -80,12 +80,12 @@ func (s *Session) Run() {
 // SetUserID 设置用户 ID
 func (s *Session) SetUserID(userID uint64) {
 	select {
-	case s.validChan <- userID:
-		s.UserID = userID
 	case <-s.closeChan:
-		// session 已关闭，不再需要验证
 		return
+	default:
 	}
+	s.UserID = userID
+	s.validChan <- userID
 }
 
 // WaitValid 等待验证

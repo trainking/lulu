@@ -42,6 +42,7 @@ type (
 		exitChan        chan struct{}           // 退出通知
 		exitOnce        sync.Once               // 退出单例控制
 		modules         []Module                // 模块列表
+		modulesMu       sync.Mutex              // 保护 modules 切片并发访问
 		connectEvent    SessionEvent            // 连接事件
 		disconnectEvent SessionEvent            // 断连事件
 		connCount       int32                   // 当前连接数
@@ -121,7 +122,9 @@ func (app *App) Run(modules ...Module) {
 			panic(err)
 		}
 		m.Route(app)
+		app.modulesMu.Lock()
 		app.modules = append(app.modules, m)
+		app.modulesMu.Unlock()
 		modulesNames += m.Name() + " "
 	}
 
@@ -257,9 +260,11 @@ func (app *App) asyncHandleMessage(s *session.Session, r Router, p network.Packe
 func (app *App) Destroy() {
 	app.exitOnce.Do(func() {
 		// 先销毁模块，倒序销毁
+		app.modulesMu.Lock()
 		for i := len(app.modules) - 1; i >= 0; i-- {
 			app.modules[i].OnDestroy()
 		}
+		app.modulesMu.Unlock()
 		app.SessionManager.Close()
 		close(app.exitChan)
 		app.listener.Close()
