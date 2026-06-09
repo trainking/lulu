@@ -151,7 +151,12 @@ func (c *Client) receive() {
 		}
 
 		if n.OpCode() > 0 {
-			c.receiveChan <- n
+			select {
+			case <-c.closeChan:
+				n.Free()
+				return
+			case c.receiveChan <- n:
+			}
 		}
 	}
 }

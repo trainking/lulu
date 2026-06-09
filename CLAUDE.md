@@ -14,7 +14,7 @@ go mod tidy                     # tidy dependencies
 
 ## Architecture
 
-lulu is a Go game server framework supporting TCP, KCP, and WebSocket. It uses protobuf for message serialization. The protocol is a fixed 4-byte big-endian header (2 bytes body length + 2 bytes opcode) followed by a variable-length protobuf body. Max packet size is 64MB (`network.MaxPacketSize`).
+lulu is a Go game server framework supporting TCP, KCP, and WebSocket. It uses protobuf for message serialization. The protocol is a fixed 4-byte big-endian header (2 bytes body length + 2 bytes opcode) followed by a variable-length protobuf body. Max packet body size is 65,535 bytes (`network.MaxPacketSize`).
 
 ### Core types
 

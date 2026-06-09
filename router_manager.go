@@ -1,6 +1,8 @@
 package lulu
 
 import (
+	"log"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -42,6 +44,7 @@ func (r *RouterManager) Register(msg proto.Message, opcode interface{}, opts ...
 	if rp.IsInner {
 		_op, err := opcodeChange(opcode)
 		if err == ErrOpCode {
+			log.Printf("lulu: skip inner route registration for %s: %v", msg.ProtoReflect().Type().Descriptor().FullName(), err)
 			return
 		}
 		r.innerRouter[msg.ProtoReflect().Type().Descriptor().FullName()] = Router{
@@ -52,6 +55,7 @@ func (r *RouterManager) Register(msg proto.Message, opcode interface{}, opts ...
 	} else {
 		_op, err := opcodeChange(opcode)
 		if err == ErrOpCode {
+			log.Printf("lulu: skip route registration for %s: %v", msg.ProtoReflect().Type().Descriptor().FullName(), err)
 			return
 		}
 		r.handleRouter[_op] = Router{

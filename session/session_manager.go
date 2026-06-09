@@ -9,6 +9,8 @@ type (
 		sessionsAdd chan *Session
 		sessionsDel chan *Session
 		closeChan   chan struct{}
+		doneChan    chan struct{}
+		closeOnce   sync.Once
 		mu          sync.RWMutex // 保护 sessions 的并发访问
 	}
 )
@@ -20,6 +22,7 @@ func NewSessionManager() *SessionManager {
 		sessionsAdd: make(chan *Session),
 		sessionsDel: make(chan *Session),
 		closeChan:   make(chan struct{}),
+		doneChan:    make(chan struct{}),
 	}
 
 	go mgr.handle()
@@ -29,6 +32,7 @@ func NewSessionManager() *SessionManager {
 
 // handle 处理会话管理器
 func (mgr *SessionManager) handle() {
+	defer close(mgr.doneChan)
 	for {
 		select {
 		case <-mgr.closeChan:
@@ -96,10 +100,8 @@ func (mgr *SessionManager) Len() int {
 
 // Close 关闭会话管理器，停止 handle goroutine
 func (mgr *SessionManager) Close() {
-	select {
-	case <-mgr.closeChan:
-		return
-	default:
+	mgr.closeOnce.Do(func() {
 		close(mgr.closeChan)
-	}
+	})
+	<-mgr.doneChan
 }

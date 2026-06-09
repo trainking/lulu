@@ -177,6 +177,7 @@ func (app *App) run() {
 					s.Destroy()
 					return
 				}
+				app.SessionManager.Add(s)
 			case <-s.WaitValid():
 				app.SessionManager.Add(s)
 			}
@@ -229,6 +230,10 @@ func (app *App) Call(s *session.Session, msg proto.Message) {
 		return
 	}
 	p := network.PackingOpcode(_r.OpCode, msgB)
+	if p == nil {
+		fmt.Printf("%s\tCall Packet Error: %v UserID: %v\n", time.Now().Format(time.RFC3339), network.ErrPacketTooLarge, s.GetUserID())
+		return
+	}
 	go app.asyncHandleMessage(s, _r, p)
 }
 
@@ -245,7 +250,7 @@ func (app *App) asyncHandleMessage(s *session.Session, r Router, p network.Packe
 	h := r.Handler
 	// 处理消息之前，中间件过滤
 	if len(r.Middleware) > 0 {
-		for i := 0; i < len(r.Middleware); i++ {
+		for i := len(r.Middleware) - 1; i >= 0; i-- {
 			h = r.Middleware[i](h)
 		}
 	}

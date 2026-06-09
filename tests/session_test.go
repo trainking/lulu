@@ -317,3 +317,22 @@ func TestSessionManagerClose(t *testing.T) {
 	// Closing twice should not panic
 	mgr.Close()
 }
+
+func TestSessionManagerConcurrentClose(t *testing.T) {
+	mgr := session.NewSessionManager()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			mgr.Close()
+		}()
+	}
+	wg.Wait()
+
+	s := session.NewSession(&mockConn{}, &mockSessionCallback{})
+	s.SetUserID(500)
+	mgr.Add(s)
+	mgr.Del(s)
+}

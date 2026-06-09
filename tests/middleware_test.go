@@ -2,10 +2,14 @@ package tests
 
 import (
 	"errors"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/trainking/lulu"
+	"github.com/trainking/lulu/network"
 	"github.com/trainking/lulu/session"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestMiddlewareChaining(t *testing.T) {
@@ -119,6 +123,42 @@ func TestMiddlewareValidSession(t *testing.T) {
 	}
 	if !handlerCalled {
 		t.Error("handler should be called when session is valid")
+	}
+}
+
+func TestValidSessionRunsBeforeCustomMiddleware(t *testing.T) {
+	app := lulu.New(&lulu.Config{
+		Address:    "127.0.0.1:0",
+		NetWork:    "tcp",
+		HeartLimit: 100,
+	})
+
+	var customCalled int32
+	var handlerCalled int32
+	msg := &wrapperspb.Int32Value{Value: 1}
+	app.Route().Register(msg, uint16(77),
+		lulu.WithRegisterHandler(func(ctx lulu.Context) error {
+			atomic.AddInt32(&handlerCalled, 1)
+			return nil
+		}),
+		lulu.WithRegisterMiddleware(func(next lulu.Handler) lulu.Handler {
+			return func(ctx lulu.Context) error {
+				atomic.AddInt32(&customCalled, 1)
+				return next(ctx)
+			}
+		}),
+	)
+
+	s := session.NewSession(&mockConn{}, app)
+	p := network.PackingOpcode(77, nil)
+	app.OnMessage(s, p)
+	time.Sleep(100 * time.Millisecond)
+
+	if atomic.LoadInt32(&customCalled) != 0 {
+		t.Fatal("custom middleware should not run for invalid session")
+	}
+	if atomic.LoadInt32(&handlerCalled) != 0 {
+		t.Fatal("handler should not run for invalid session")
 	}
 }
 
