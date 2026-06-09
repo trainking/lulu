@@ -101,7 +101,7 @@ func (m *M) Route(app *lulu.App) {
 
 ## Routing
 
-Routes are registered inside each module's `Route` method via `app.Route().Register()`. There are three kinds:
+Routes are registered inside each module's `Route` method via `app.Route().Register()`. Register routes only during startup, before the app begins accepting connections; runtime registration is not supported. There are three kinds:
 
 ### External routes (client → server)
 
@@ -252,7 +252,7 @@ Fixed-length header + variable-length body, big-endian byte order:
 
 ## Security
 
-- **Message size limit**: Maximum 64 MB per packet to prevent OOM attacks.
+- **Message size limit**: Maximum 65,535 bytes per packet body, matching the uint16 body-length header.
 - **Authentication timeout**: Clients must authenticate within `ValidTimeout` seconds (call `session.SetUserID()`), or the connection is dropped.
 - **Flood protection**: Per-connection message rate limiting via `HeartLimit` (max messages per minute). Defaults to 100; set to 0 to disable.
 - **TLS**: Configure the `TLS` section in your config to enable transport-layer encryption for any protocol.

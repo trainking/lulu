@@ -101,7 +101,7 @@ func (m *M) Route(app *lulu.App) {
 
 ## 路由
 
-在每个模块的 `Route` 方法中，通过 `app.Route().Register()` 注册路由。lulu 中有三种路由：
+在每个模块的 `Route` 方法中，通过 `app.Route().Register()` 注册路由。路由只能在启动阶段注册，不支持运行期注册。lulu 中有三种路由：
 
 ### 外部路由（客户端 → 服务器）
 
@@ -256,7 +256,7 @@ for packet := range client.Receive() {
 
 ## 安全特性
 
-- **消息大小限制**：单包最大 64 MB，防止内存溢出攻击。
+- **消息大小限制**：单包包体最大 65,535 bytes，与 uint16 包体长度头保持一致。
 - **验证超时**：客户端须在 `ValidTimeout` 秒内通过 `session.SetUserID()` 完成身份验证，否则强制断开。
 - **洪水攻击防护**：通过 `HeartLimit` 限制单连接每分钟最大消息数。默认 100，设为 0 关闭此功能。
 - **TLS 加密**：在配置文件中添加 `TLS` 段即可为任意协议启用传输层加密。

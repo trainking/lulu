@@ -11,8 +11,8 @@
 
 import type { Packet } from "./types";
 
-/** Maximum packet body size (64 MB), same as server-side MaxPacketSize */
-export const MAX_PACKET_SIZE = 64 * 1024 * 1024;
+/** Maximum packet body size, same as the server-side uint16 body length header. */
+export const MAX_PACKET_SIZE = 0xffff;
 
 /** Header size in bytes (2 + 2 = 4) */
 const HEADER_SIZE = 4;

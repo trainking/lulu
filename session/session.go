@@ -1,6 +1,7 @@
 package session
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -9,6 +10,10 @@ import (
 	"github.com/trainking/lulu/network"
 	"google.golang.org/protobuf/proto"
 )
+
+const DefaultSessionSendChanSize = 1024
+
+var ErrSendQueueFull = errors.New("session send queue full")
 
 type (
 	// Session 会话，会话是对玩家连接的一个包装
@@ -20,9 +25,10 @@ type (
 		callback  SessionCallback // 回调接口
 		closeChan chan struct{}   // 关闭信号
 		closeOnce sync.Once       // 控制关闭单例
-		validChan chan uint64     // 验证通过信号
-		lastTick  int64           // 最后一次计数刷新时间 (Unix 秒)
-		msgCount  int32           // 当前周期的消息计数
+		sendChan  chan network.Packet
+		validChan chan uint64 // 验证通过信号
+		lastTick  int64       // 最后一次计数刷新时间 (Unix 秒)
+		msgCount  int32       // 当前周期的消息计数
 	}
 
 	// SessionCallback 会话回调接口
@@ -43,13 +49,16 @@ type (
 
 // NewSession 创建会话
 func NewSession(conn network.Conn, callback SessionCallback) *Session {
-	return &Session{
+	s := &Session{
 		ID:        time.Now().UnixNano(),
 		Conn:      conn,
 		callback:  callback,
 		closeChan: make(chan struct{}),
+		sendChan:  make(chan network.Packet, DefaultSessionSendChanSize),
 		validChan: make(chan uint64, 1), // 使用缓冲 channel 防止阻塞
 	}
+	go s.writeLoop()
+	return s
 }
 
 // Run 运行会话
@@ -84,7 +93,7 @@ func (s *Session) SetUserID(userID uint64) {
 		return
 	default:
 	}
-	s.UserID = userID
+	atomic.StoreUint64(&s.UserID, userID)
 	s.validChan <- userID
 }
 
@@ -95,7 +104,11 @@ func (s *Session) WaitValid() <-chan uint64 {
 
 // IsValid 是否有效
 func (s *Session) IsValid() bool {
-	return s.UserID != 0
+	return s.GetUserID() != 0
+}
+
+func (s *Session) GetUserID() uint64 {
+	return atomic.LoadUint64(&s.UserID)
 }
 
 // CheckFlood 检查是否洪水攻击，每分钟超过 limit 返回 true
@@ -127,14 +140,52 @@ func (s *Session) Send(msg proto.Message) error {
 	}
 
 	pakcket := network.PackingOpcode(opcode, msgB)
-	return s.Conn.WritePacket(pakcket)
+	if pakcket == nil {
+		return network.ErrPacketTooLarge
+	}
+
+	select {
+	case <-s.closeChan:
+		pakcket.Free()
+		return network.ErrConnClosing
+	case s.sendChan <- pakcket:
+		return nil
+	default:
+		pakcket.Free()
+		return ErrSendQueueFull
+	}
+}
+
+func (s *Session) writeLoop() {
+	for {
+		select {
+		case <-s.closeChan:
+			return
+		case p := <-s.sendChan:
+			if p == nil {
+				continue
+			}
+			if err := s.Conn.WritePacket(p); err != nil {
+				p.Free()
+				s.Destroy()
+				return
+			}
+			p.Free()
+		}
+	}
 }
 
 // Destroy 销毁会话
 func (s *Session) Destroy() {
+	s.destroy(true)
+}
+
+func (s *Session) destroy(notify bool) {
 	s.closeOnce.Do(func() {
 		close(s.closeChan)
 		s.Conn.Close()
-		s.callback.OnDisconnect(s)
+		if notify {
+			s.callback.OnDisconnect(s)
+		}
 	})
 }

@@ -55,10 +55,12 @@ func NewWebSocketListener(config *Config) (Listener, error) {
 			},
 		},
 	}
-	http.HandleFunc(config.WSUpgradePath, l.handleWebSocket)
+	mux := http.NewServeMux()
+	mux.HandleFunc(config.WSUpgradePath, l.handleWebSocket)
 
 	server := &http.Server{
-		Addr: config.Addr,
+		Addr:    config.Addr,
+		Handler: mux,
 	}
 
 	if config.TLSConfig != nil {
@@ -141,17 +143,16 @@ func (w *WebSocketConn) ReadPacket() (Packet, error) {
 		return nil, err
 	}
 
-	return NewDefaultPacket(message), nil
+	return ParsePacket(message)
 }
 
 // WritePacket 写入数据包
 func (w *WebSocketConn) WritePacket(p Packet) error {
-	w.mu.RLock()
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	if w.isClosed {
-		w.mu.RUnlock()
 		return ErrConnClosing
 	}
-	w.mu.RUnlock()
 
 	if w.config.WriteTimeout > 0 {
 		w.conn.SetWriteDeadline(time.Now().Add(time.Duration(w.config.WriteTimeout) * time.Second))

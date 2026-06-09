@@ -212,12 +212,12 @@ func (app *App) Call(s *session.Session, msg proto.Message) {
 	if !ok {
 		_, ok := app.RouterManager.GetSendOpCode(msgName)
 		if !ok {
-			fmt.Printf("%s\tAction Error: %v UserID: %v\n", time.Now().Format(time.RFC3339), "no register router", s.UserID)
+			fmt.Printf("%s\tAction Error: %v UserID: %v\n", time.Now().Format(time.RFC3339), "no register router", s.GetUserID())
 			return
 		}
 
 		if err := s.Send(msg); err != nil {
-			fmt.Printf("%s\tAction Send Error: %v UserID: %v\n", time.Now().Format(time.RFC3339), err, s.UserID)
+			fmt.Printf("%s\tAction Send Error: %v UserID: %v\n", time.Now().Format(time.RFC3339), err, s.GetUserID())
 		}
 		return
 	}
@@ -225,7 +225,7 @@ func (app *App) Call(s *session.Session, msg proto.Message) {
 	// 内部路由执行
 	msgB, err := proto.Marshal(msg)
 	if err != nil {
-		fmt.Printf("%s\tCall Marshal Error: %v UserID: %v\n", time.Now().Format(time.RFC3339), err, s.UserID)
+		fmt.Printf("%s\tCall Marshal Error: %v UserID: %v\n", time.Now().Format(time.RFC3339), err, s.GetUserID())
 		return
 	}
 	p := network.PackingOpcode(_r.OpCode, msgB)

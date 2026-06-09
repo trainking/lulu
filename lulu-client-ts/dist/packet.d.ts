@@ -9,8 +9,8 @@
  * └──────────┴──────────┴─────────────┘
  */
 import type { Packet } from "./types";
-/** Maximum packet body size (64 MB), same as server-side MaxPacketSize */
-export declare const MAX_PACKET_SIZE: number;
+/** Maximum packet body size, same as the server-side uint16 body length header. */
+export declare const MAX_PACKET_SIZE = 65535;
 /**
  * Encode an opcode and body into a lulu protocol buffer.
  */

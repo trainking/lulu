@@ -2,6 +2,7 @@ package network
 
 import (
 	"crypto/tls"
+	"io"
 	"net"
 	"time"
 
@@ -84,8 +85,18 @@ func (k *KcpConn) WritePacket(p Packet) error {
 		k.conn.SetWriteDeadline(time.Now().Add(time.Duration(k.config.WriteTimeout) * time.Second))
 	}
 
-	_, err := k.conn.Write(p.Serialize())
-	return err
+	buff := p.Serialize()
+	for len(buff) > 0 {
+		n, err := k.conn.Write(buff)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return io.ErrShortWrite
+		}
+		buff = buff[n:]
+	}
+	return nil
 }
 
 // GetReadIP 获取真实的IP

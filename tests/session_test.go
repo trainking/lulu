@@ -281,7 +281,10 @@ func TestSessionManagerReplaceDuplicateUserID(t *testing.T) {
 	if got.ID != s2.ID {
 		t.Error("new session should replace old one with same UserID")
 	}
-	if !conn1.closed {
+	conn1.mu.Lock()
+	conn1Closed := conn1.closed
+	conn1.mu.Unlock()
+	if !conn1Closed {
 		t.Error("old connection should be closed on replacement")
 	}
 }

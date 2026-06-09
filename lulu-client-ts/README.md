@@ -134,7 +134,7 @@ if (result) {
 // Create a heartbeat packet
 const hb: Uint8Array = encodeHeartbeat(0);
 
-// Maximum packet size (64 MB)
+// Maximum packet body size (65,535 bytes)
 console.log(MAX_PACKET_SIZE);
 ```
 

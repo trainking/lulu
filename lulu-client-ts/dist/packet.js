@@ -14,8 +14,8 @@ exports.MAX_PACKET_SIZE = void 0;
 exports.encodePacket = encodePacket;
 exports.decodePacket = decodePacket;
 exports.encodeHeartbeat = encodeHeartbeat;
-/** Maximum packet body size (64 MB), same as server-side MaxPacketSize */
-exports.MAX_PACKET_SIZE = 64 * 1024 * 1024;
+/** Maximum packet body size, same as the server-side uint16 body length header. */
+exports.MAX_PACKET_SIZE = 0xffff;
 /** Header size in bytes (2 + 2 = 4) */
 const HEADER_SIZE = 4;
 /**

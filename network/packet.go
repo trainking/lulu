@@ -4,12 +4,13 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
+	"math"
 	"sync"
 )
 
 const (
-	// MaxPacketSize 最大包体大小限制（64MB），防止内存攻击
-	MaxPacketSize = 64 * 1024 * 1024
+	// MaxPacketSize 最大包体大小限制，与 uint16 包体长度头保持一致。
+	MaxPacketSize = math.MaxUint16
 )
 
 var (
@@ -21,7 +22,8 @@ var (
 	}
 
 	// ErrPacketTooLarge 包体大小超过限制
-	ErrPacketTooLarge = errors.New("packet too large")
+	ErrPacketTooLarge  = errors.New("packet too large")
+	ErrPacketMalformed = errors.New("packet malformed")
 )
 
 type (
@@ -124,6 +126,9 @@ func PackingReader(r io.Reader) (Packet, error) {
 // PackingOpcode 加入 opcode 方式，创建一个 Packet
 func PackingOpcode(opcode uint16, msg []byte) Packet {
 	bodyLen := len(msg)
+	if bodyLen > MaxPacketSize {
+		return nil
+	}
 	buff := make([]byte, 4+bodyLen)
 	binary.BigEndian.PutUint16(buff[0:2], uint16(bodyLen))
 	binary.BigEndian.PutUint16(buff[2:4], opcode)
@@ -132,4 +137,19 @@ func PackingOpcode(opcode uint16, msg []byte) Packet {
 	}
 
 	return NewDefaultPacket(buff)
+}
+
+// ParsePacket validates a complete lulu protocol buffer and returns a Packet.
+func ParsePacket(buff []byte) (Packet, error) {
+	if len(buff) < 4 {
+		return nil, ErrPacketMalformed
+	}
+	bodyLength := int(binary.BigEndian.Uint16(buff[0:2]))
+	if bodyLength > MaxPacketSize {
+		return nil, ErrPacketTooLarge
+	}
+	if len(buff) != 4+bodyLength {
+		return nil, ErrPacketMalformed
+	}
+	return NewDefaultPacket(buff), nil
 }

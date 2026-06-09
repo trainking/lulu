@@ -109,6 +109,9 @@ func (c *Client) Send(opcode uint16, msg protoreflect.ProtoMessage) error {
 		return err
 	}
 	p := network.PackingOpcode(opcode, msgB)
+	if p == nil {
+		return network.ErrPacketTooLarge
+	}
 
 	return c.Conn.WritePacket(p)
 }

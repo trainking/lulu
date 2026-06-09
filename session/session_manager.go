@@ -34,31 +34,49 @@ func (mgr *SessionManager) handle() {
 		case <-mgr.closeChan:
 			return
 		case s := <-mgr.sessionsAdd:
+			var oldSession *Session
 			mgr.mu.Lock()
-			if oldSession, ok := mgr.sessions[s.UserID]; ok {
-				oldSession.Destroy()
+			userID := s.GetUserID()
+			if old, ok := mgr.sessions[userID]; ok {
+				oldSession = old
 			}
-			mgr.sessions[s.UserID] = s
+			mgr.sessions[userID] = s
 			mgr.mu.Unlock()
+			if oldSession != nil {
+				oldSession.destroy(false)
+			}
 		case s := <-mgr.sessionsDel:
+			var removed *Session
 			mgr.mu.Lock()
-			if _session, ok := mgr.sessions[s.UserID]; ok && _session.ID == s.ID {
-				delete(mgr.sessions, s.UserID)
-				_session.Destroy()
+			userID := s.GetUserID()
+			if _session, ok := mgr.sessions[userID]; ok && _session.ID == s.ID {
+				delete(mgr.sessions, userID)
+				removed = _session
 			}
 			mgr.mu.Unlock()
+			if removed != nil {
+				removed.destroy(false)
+			}
 		}
 	}
 }
 
 // Add 增加会话，进入会话管理器
 func (mgr *SessionManager) Add(s *Session) {
-	mgr.sessionsAdd <- s
+	select {
+	case <-mgr.closeChan:
+		return
+	case mgr.sessionsAdd <- s:
+	}
 }
 
 // Del 删除会话，从会话管理器中删除
 func (mgr *SessionManager) Del(s *Session) {
-	mgr.sessionsDel <- s
+	select {
+	case <-mgr.closeChan:
+		return
+	case mgr.sessionsDel <- s:
+	}
 }
 
 // Get 获取玩家的会话

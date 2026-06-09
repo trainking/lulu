@@ -2,6 +2,7 @@ package network
 
 import (
 	"crypto/tls"
+	"io"
 	"net"
 	"time"
 )
@@ -75,8 +76,18 @@ func (c *TcpConn) WritePacket(p Packet) error {
 		c.conn.SetWriteDeadline(time.Now().Add(time.Duration(c.config.WriteTimeout) * time.Second))
 	}
 
-	_, err := c.conn.Write(p.Serialize())
-	return err
+	buff := p.Serialize()
+	for len(buff) > 0 {
+		n, err := c.conn.Write(buff)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return io.ErrShortWrite
+		}
+		buff = buff[n:]
+	}
+	return nil
 }
 
 // GetRealIP 获取对端的真实IP

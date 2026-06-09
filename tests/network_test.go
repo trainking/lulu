@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"math"
 	"strings"
 	"sync"
 	"testing"
@@ -115,10 +116,7 @@ func TestPackingReaderEmptyBody(t *testing.T) {
 }
 
 func TestPackingReaderTooLarge(t *testing.T) {
-	// Even though header uses uint16 (max 65535 < 64MB MaxPacketSize),
-	// test that the MaxPacketSize guard exists in the codebase
 	header := make([]byte, 4)
-	// Set the maximum body length the protocol can express
 	binary.BigEndian.PutUint16(header[0:2], 0xFFFF)
 	binary.BigEndian.PutUint16(header[2:4], 0x0001)
 
@@ -201,8 +199,27 @@ func TestPacketSerializationRoundtrip(t *testing.T) {
 }
 
 func TestMaxPacketSize(t *testing.T) {
-	if network.MaxPacketSize != 64*1024*1024 {
-		t.Errorf("MaxPacketSize = %d, want %d", network.MaxPacketSize, 64*1024*1024)
+	if network.MaxPacketSize != math.MaxUint16 {
+		t.Errorf("MaxPacketSize = %d, want %d", network.MaxPacketSize, math.MaxUint16)
+	}
+}
+
+func TestPackingOpcodeTooLarge(t *testing.T) {
+	p := network.PackingOpcode(1, make([]byte, network.MaxPacketSize+1))
+	if p != nil {
+		t.Fatal("expected nil packet for oversized body")
+	}
+}
+
+func TestParsePacketMalformed(t *testing.T) {
+	if _, err := network.ParsePacket([]byte{0x00, 0x01}); err != network.ErrPacketMalformed {
+		t.Fatalf("expected ErrPacketMalformed for short packet, got %v", err)
+	}
+
+	headerOnly := make([]byte, 4)
+	binary.BigEndian.PutUint16(headerOnly[0:2], 1)
+	if _, err := network.ParsePacket(headerOnly); err != network.ErrPacketMalformed {
+		t.Fatalf("expected ErrPacketMalformed for length mismatch, got %v", err)
 	}
 }
 
